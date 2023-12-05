@@ -1,0 +1,7 @@
+name "fusionos"
+description "A hobby OS implementation in D."
+authors "Hiroki Noda"
+copyright "Copyright © 2023, Hiroki Noda"
+license "BSL-1.0"
+targetPath "build"
+targetName "main"

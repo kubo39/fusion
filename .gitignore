@@ -1,0 +1,17 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/fusionos
+fusionos.so
+fusionos.dylib
+fusionos.dll
+fusionos.a
+fusionos.lib
+fusionos-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst
+build
