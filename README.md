@@ -1,8 +1,6 @@
 # Fusion OS port to D
 
-[Fusion OS](fusionos), which is written in Nim.
-
-- [fusionos](https://github.com/khaledh/fusion)
+[Fusion OS][fusionos], which is written in Nim.
 
 ## prerequiresites
 
@@ -10,3 +8,5 @@
 - QEMU
 - UEFI BIOS image:
   - Ubuntu: `apt install ovmf`
+
+[fusionos]: https://github.com/khaledh/fusion
