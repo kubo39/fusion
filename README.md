@@ -1,6 +1,6 @@
-# Fusion OS port to D
+# Writing OS in D, porting from FusionOS
 
-[Fusion OS][fusionos], which is written in Nim.
+This is D uefi-based OS porting from [Writing OS in Nim](https://github.com/khaledh/khaledh.github.io/tree/main/docs/osdev) by [Fusion OS][fusionos], which is written in Nim.
 
 ## prerequiresites
 
