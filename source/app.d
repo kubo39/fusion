@@ -7,32 +7,32 @@ extern (C):
 
 @naked void exit(int status)
 {
-	__asm(`
-	.loop:
-		cli
-		hlt
-		jmp .loop
-	`, "");
+    __asm(`
+    .loop:
+        cli
+        hlt
+        jmp .loop
+    `, "");
 }
 
 void EfiMainInner()
 {
-	uefi.sysTable = sysTable;
-	consoleClear();
+    uefi.sysTable = sysTable;
+    consoleClear();
 }
 
 void Dmain() {}
 
 EfiStatus efi_main(EfiHandle imgHandle, EfiSystemTable* sysTable)
 {
-	Dmain();
+    Dmain();
 
-	EfiMainInner();
+    EfiMainInner();
 
-	// String literals have a '\0' appended.
-	// https://dlang.org/spec/expression.html#string_literals
-	wchar* msg = cast(wchar*) "Hello, World!"w.ptr;
-	consoleOut(msg);
-	exit(0);
-	return EfiLoadError;
+    // String literals have a '\0' appended.
+    // https://dlang.org/spec/expression.html#string_literals
+    wchar* msg = cast(wchar*) "Hello, World!"w.ptr;
+    consoleOut(msg);
+    exit(0);
+    return EfiLoadError;
 }
