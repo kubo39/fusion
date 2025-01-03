@@ -2,6 +2,18 @@ module uefi;
 
 extern (C):
 
+__gshared EfiSystemTable* sysTable;
+
+void consoleClear()
+{
+	cast(void)sysTable.conOut.clearScreen(sysTable.conOut);
+}
+
+void consoleOut(wchar* s)
+{
+	cast(void)sysTable.conOut.outputString(sysTable.conOut, s);
+}
+
 alias EfiStatus = uint;
 alias EfiHandle = void*;
 
