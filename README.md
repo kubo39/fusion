@@ -6,7 +6,12 @@ This is D uefi-based OS porting from [Writing OS in Nim](https://github.com/khal
 
 - LDC - LLVM D Compiler
 - QEMU
-- UEFI BIOS image:
-  - Ubuntu: `apt install ovmf`
+- UEFI BIOS image
+
+```console
+apt install ovmf
+cp /usr/share/OVMF/OVMF_CODE.fd ovmf/
+cp /usr/share/OVMF/OVMF_VARS.fd ovmf/
+```
 
 [fusionos]: https://github.com/khaledh/fusion
