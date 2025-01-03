@@ -15,16 +15,23 @@ extern (C):
 	`, "");
 }
 
-void d_main() {}
+void EfiMainInner()
+{
+	uefi.sysTable = sysTable;
+	consoleClear();
+}
+
+void Dmain() {}
 
 EfiStatus efi_main(EfiHandle imgHandle, EfiSystemTable* sysTable)
 {
-	d_main();
-	uefi.sysTable = sysTable;
+	Dmain();
+
+	EfiMainInner();
+
 	// String literals have a '\0' appended.
 	// https://dlang.org/spec/expression.html#string_literals
 	wchar* msg = cast(wchar*) "Hello, World!"w.ptr;
-	consoleClear();
 	consoleOut(msg);
 	exit(0);
 	return EfiLoadError;
