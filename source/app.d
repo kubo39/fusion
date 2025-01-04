@@ -15,7 +15,7 @@ extern (C):
     `, "");
 }
 
-void EfiMainInner()
+void EfiMainInner(EfiSystemTable* sysTable)
 {
     uefi.sysTable = sysTable;
     consoleClear();
@@ -27,7 +27,7 @@ EfiStatus efi_main(EfiHandle imgHandle, EfiSystemTable* sysTable)
 {
     Dmain();
 
-    EfiMainInner();
+    EfiMainInner(sysTable);
 
     // String literals have a '\0' appended.
     // https://dlang.org/spec/expression.html#string_literals
