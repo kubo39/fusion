@@ -1,3 +1,10 @@
-extern(C):
+import debugcon;
 
-void KernelMain() {}
+extern(C):
+nothrow:
+@nogc:
+
+void KernelMain()
+{
+    dbgln("Hello, world!");
+}
