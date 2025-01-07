@@ -9,9 +9,9 @@ void consoleClear()
     cast(void)sysTable.conOut.clearScreen(sysTable.conOut);
 }
 
-void consoleOut(wchar* s)
+void consoleOut(inout(wchar)[] s)
 {
-    cast(void)sysTable.conOut.outputString(sysTable.conOut, s);
+    cast(void)sysTable.conOut.outputString(sysTable.conOut, s.ptr);
 }
 
 alias EfiStatus = uint;
@@ -46,15 +46,25 @@ struct EfiSystemTable
 struct SimpleTextOutput
 {
     void* reset;
-    EfiStatus function(SimpleTextOutput*, wchar*) outputString;
+    EfiStatus function(SimpleTextOutput*, inout(wchar)*) outputString;
     void* testString;
     void* queryMode;
     EfiStatus function(SimpleTextOutput*, uint) setMode;
-    void* setAttribute;
+    EfiStatus function(SimpleTextOutput*, uint) setAttribute;
     EfiStatus function(SimpleTextOutput*) clearScreen;
     void* setCursorPos;
     void* enableCursor;
     void** mode;
+}
+
+enum
+{
+    EFI_BLACK = 0,
+    EFI_BLUE = 1,
+    EFI_GREEN = 2,
+    EFI_RED = 4,
+    EFI_YELLOW = 14,
+    EFI_WHITE = 15,
 }
 
 enum : EfiStatus
@@ -114,10 +124,20 @@ struct EfiBootServices
     void* raiseTpl;
     void* restoreTpl;
     // memory services
-    void* allocatePages;
+    EfiStatus function(
+        EfiAllocateType, EfiMemoryType, uint, EfiPhysicalAddress*
+    ) allocatePages;
     void* freePages;
-    void* getMemoryMap;
-    void* allocatePool;
+    EfiStatus function(
+        uint*,
+        EfiMemoryDescriptor*,
+        uint*,
+        uint*,
+        uint*
+    ) getMemoryMap;
+    EfiStatus function(
+        EfiMemoryType, uint, void*
+    ) allocatePool;
     void* freePool;
     // event & timer services
     void* createEvent;
@@ -141,7 +161,9 @@ struct EfiBootServices
     void* startImage;
     void* exit;
     void* unloadImage;
-    void* exitBootServices;
+    EfiStatus function(
+        EfiHandle, uint
+    ) exitBootServices;
     // misc services
     void* getNextMonotonicCount;
     void* stall;
@@ -166,6 +188,26 @@ struct EfiBootServices
     void* setMem;
     void* createEventEx;
 }
+
+struct EfiMemoryDescriptor
+{
+    EfiMemoryType type;
+    EfiPhysicalAddress physicalStart;
+    EfiVirtualAddress virtualStart;
+    ulong numberOfPages;
+    ulong attribute;
+}
+
+enum EfiAllocateType
+{
+    AllocateAnyPages,
+    AllocateMaxAddress,
+    AllocateAddress,
+    MaxAllocateType    
+}
+
+alias EfiPhysicalAddress = ulong;
+alias EfiVirtualAddress = ulong;
 
 struct EfiGuid
 {
@@ -222,11 +264,15 @@ struct EfiFileProtocol
 {
     ulong revision;
     EfiStatus function(
-        EfiFileProtocol*, EfiFileProtocol**, wchar*, ulong, ulong
+        EfiFileProtocol*, EfiFileProtocol**, inout(wchar)*, ulong, ulong
     ) open;
-    void* close;
+    EfiStatus function(
+        EfiFileProtocol*
+    ) close;
     void* delete_;
-    void* read;
+    EfiStatus function(
+        EfiFileProtocol*, uint*, void*
+    ) read;
     void* write;
     void* getPosition;
     void* setPosition;
