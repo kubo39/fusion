@@ -1,6 +1,7 @@
 import ldc.attributes : naked;
 import ldc.llvmasm;
 
+import bootinfo;
 import uefi;
 
 extern (C):
@@ -9,7 +10,7 @@ enum PageSize = 4096;
 enum KernelPhysicalBase = 0x100000;
 enum ulong KernelStackSize = 128 * 1024;
 
-alias KernelEntryPoint = void function();
+alias KernelEntryPoint = void function(BootInfo*);
 
 @naked noreturn exit(int status)
 {
@@ -97,6 +98,15 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
         &kernelStackBase
     ));
 
+    consoleOut("boot: Allocating emory for bootinfo"w);
+    ulong bootInfoBase;
+    checkStatus(uefi.sysTable.bootServices.allocatePages(
+        EfiAllocateType.AllocateAnyPages,
+        EfiMemoryType.OsvKernelStack,
+        1,
+        &bootInfoBase
+    ));
+
     // read the kernel into memory
     consoleOut("boot: Reading kernel into memory"w);
     checkStatus(kernelFile.read(
@@ -163,9 +173,54 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
         exit(0);
     }
 
+    // ======= NO MORE UEFI BOOT SERVICES =======
+
+    MemoryMapEntry[] physMemoryMap;
+    immutable uefiNumMemoryMapEntries = memoryMapSize / memoryMapDescriptorSize;
+    foreach (i; 0 .. uefiNumMemoryMapEntries)
+    {
+        auto uefiEntry = cast(EfiMemoryDescriptor*)(memoryMap + i * memoryMapDescriptorSize);
+        MemoryType memoryType;
+        switch (uefiEntry.type)
+        {
+            case EfiMemoryType.EfiConventionalMemory:
+            case EfiMemoryType.EfiBootServicesCode:
+            case EfiMemoryType.EfiBootServicesData:
+            case EfiMemoryType.EfiLoaderCode:
+            case EfiMemoryType.EfiLoaderData:
+                memoryType = MemoryType.Free;
+                break;
+            case EfiMemoryType.OsvKernelCode:
+                memoryType = MemoryType.KernelCode;
+                break;
+            case EfiMemoryType.OsvKernelData:
+                memoryType = MemoryType.KernelData;
+                break;
+            case EfiMemoryType.OsvKernelStack:
+                memoryType = MemoryType.KernelStack;
+                break;
+            default:
+                memoryType = MemoryType.Reserved;
+        }
+        physMemoryMap[i] = MemoryMapEntry(
+            memoryType,
+            uefiEntry.physicalStart,
+            uefiEntry.numberOfPages
+        );
+    }
+
+    auto bootInfo = cast(BootInfo*) bootInfoBase;
+
+    // copy physical memory map entries to boot info
+    bootInfo.physicalMemoryMap.len = cast(uint) physMemoryMap.length;
+    foreach (i; 0 .. physMemoryMap.length)
+    {
+        bootInfo.physicalMemoryMap.entries[i] = physMemoryMap[i];
+    }
+
     // jump to kernel
     auto kernelMain = cast(KernelEntryPoint) kernelImageBase;
-    kernelMain();
+    kernelMain(bootInfo);
 
     // we should never get here
     exit(0);

@@ -1,6 +1,7 @@
 import ldc.attributes : naked;
 import ldc.llvmasm : __asm;
 
+import bootinfo;
 import debugcon;
 
 extern(C):
@@ -18,8 +19,9 @@ nothrow:
     while (true) {}
 }
 
-void KernelMain()
+void KernelMain(BootInfo* bootInfo)
 {
-    dbgln("Hello, world!");
+    dbgln("kernel: Fusion Kernel");
+    dbgln("kernel: Memory map length");
     exit(0);
 }
