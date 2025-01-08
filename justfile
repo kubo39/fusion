@@ -14,4 +14,5 @@ run: bootloader kernel
         -drive if=pflash,format=raw,file=ovmf/OVMF_VARS.fd \
         -drive format=raw,file=fat:rw:diskimg \
         -machine q35 \
-        -net none
+        -net none \
+        -debugcon stdio

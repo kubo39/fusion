@@ -9,7 +9,9 @@ enum PageSize = 4096;
 enum KernelPhysicalBase = 0x100000;
 enum ulong KernelStackSize = 128 * 1024;
 
-@naked void exit(int status)
+alias KernelEntryPoint = void function();
+
+@naked noreturn exit(int status)
 {
     __asm(`
     .loop:
@@ -17,6 +19,7 @@ enum ulong KernelStackSize = 128 * 1024;
         hlt
         jmp .loop
     `, "");
+    while (true) {}
 }
 
 void checkStatus(EfiStatus status)
@@ -32,7 +35,7 @@ void checkStatus(EfiStatus status)
     sysTable.conOut.setAttribute(sysTable.conOut, EFI_WHITE);
 }
 
-void EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
+noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
 {
     uefi.sysTable = sysTable;
     consoleClear();
@@ -159,6 +162,13 @@ void EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
         consoleOut("boot: Failed to exit boot services"w);
         exit(0);
     }
+
+    // jump to kernel
+    auto kernelMain = cast(KernelEntryPoint) kernelImageBase;
+    kernelMain();
+
+    // we should never get here
+    exit(0);
 }
 
 void Dmain() {}
@@ -166,11 +176,6 @@ void Dmain() {}
 EfiStatus efi_main(EfiHandle imgHandle, EfiSystemTable* sysTable)
 {
     Dmain();
-
     EfiMainInner(imgHandle, sysTable);
-
-    // String literals have a '\0' appended.
-    // https://dlang.org/spec/expression.html#string_literals
-    exit(0);
     return EfiLoadError;
 }
