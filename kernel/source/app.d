@@ -21,7 +21,7 @@ nothrow:
 
 void KernelMain(BootInfo* bootInfo)
 {
-    dbgln("kernel: Fusion Kernel");
-    dbgln("kernel: Memory map length");
+    dbg("kernel: Fusion Kernel\n");
+    dbg("kernel: Memory map length: %d\n", bootInfo.physicalMemoryMap.len);
     exit(0);
 }
