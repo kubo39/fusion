@@ -1,5 +1,5 @@
 import ldc.attributes : naked;
-import ldc.llvmasm;
+import ldc.llvmasm : __asm;
 
 import bootinfo;
 import uefi;
@@ -142,7 +142,7 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     // allocate pool for memory map (this changes the memory map size, hence the previous step)
     consoleOut("boot: Allocating pool for memory map"w);
     checkStatus(uefi.sysTable.bootServices.allocatePool(
-        EfiMemoryType.EfiLoaderData, memoryMapSize, cast(void*) &memoryMap
+        EfiMemoryType.EfiLoaderData, memoryMapSize, cast(void**) &memoryMap
     ));
 
     // now get the memory map
@@ -219,8 +219,12 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     }
 
     // jump to kernel
-    auto kernelMain = cast(KernelEntryPoint) kernelImageBase;
-    kernelMain(bootInfo);
+    const ulong kernelStackTop = kernelStackBase + KernelStackSize;
+    __asm(`
+        jmpq *%rdx  # kernel entry point
+    `, "{rdi},{rsp},{rdx}",
+    bootInfoBase, kernelStackTop, KernelPhysicalBase);
+
 
     // we should never get here
     exit(0);

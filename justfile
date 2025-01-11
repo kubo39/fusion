@@ -1,5 +1,5 @@
 bootloader:
-    dub build -b plain :bootloader --arch=x86_64-unknown-windows-msvc
+    dub build -b plain :bootloader --arch=x86_64-unknown-windows-msvc --force
 
 kernel:
     dub build -b plain :kernel --arch=x86_64-unknown-unknown-elf-unknown --force
