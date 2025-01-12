@@ -1,6 +1,6 @@
 module bootinfo;
 
-enum MemoryType
+enum MemoryType : uint
 {
     Free,
     KernelCode,
@@ -19,7 +19,7 @@ struct MemoryMapEntry
 struct MemoryMap
 {
     uint len;
-    MemoryMapEntry[] entries;
+    MemoryMapEntry** entries;
 }
 
 struct BootInfo
