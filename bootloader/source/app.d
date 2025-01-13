@@ -133,6 +133,9 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     uint memoryMapDescriptorSize;
     uint memoryMapDescriptorVersion;
 
+    ubyte[4096 * 3] memoryMapBuffer = void;
+
+/*
     // get memory map size
     status = uefi.sysTable.bootServices.getMemoryMap(
         &memoryMapSize,
@@ -147,21 +150,26 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     // allocate pool for memory map (this changes the memory map size, hence the previous step)
     consoleOut("boot: Allocating pool for memory map"w);
     checkStatus(uefi.sysTable.bootServices.allocatePool(
-        EfiMemoryType.EfiLoaderData, memoryMapSize, &memoryMap
+        EfiMemoryType.EfiLoaderData,
+        memoryMapSize,
+        cast(void**) &memoryMap
     ));
     dbg("[debug]: memory map (allocatePool): 0x%x\n", memoryMap);
     dbg("[debug]: memory map size (allocatePool): 0x%x\n", memoryMapSize);
+    dbg("[debug]: descriptor size (allocatePool): 0x%x\n", memoryMapDescriptorSize);
+*/
 
     // now get the memory map
     consoleOut("boot: Getting memory map and exiting boot services"w);
     status = uefi.sysTable.bootServices.getMemoryMap(
         &memoryMapSize,
-        cast(EfiMemoryDescriptor*) memoryMap,
+        cast(EfiMemoryDescriptor*) memoryMapBuffer.ptr,
         &memoryMapKey,
         &memoryMapDescriptorSize,
         &memoryMapDescriptorVersion
     );
-    dbg("[debug]: memory map (getMemoryMap): 0x%x\n", memoryMap);
+    dbg("[debug]: memory map (getMemoryMap): 0x%x\n", memoryMapBuffer.ptr);
+    dbg("[debug]: memory map key (getMemoryMap): 0x%x\n", memoryMapKey);
     dbg("[debug]: memory map size (getMemoryMap): 0x%x\n", memoryMapSize);
     dbg("[debug]: descriptor size (getMemoryMap): 0x%x\n", memoryMapDescriptorSize);
 
@@ -190,7 +198,7 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     const uefiNumMemoryMapEntries = memoryMapSize / memoryMapDescriptorSize;
     foreach (i; 0 .. uefiNumMemoryMapEntries)
     {
-        const uefiEntry = cast(EfiMemoryDescriptor*)(cast(ulong)memoryMap + i * memoryMapDescriptorSize);
+        const uefiEntry = cast(EfiMemoryDescriptor*)(cast(ulong)memoryMapBuffer.ptr + i * memoryMapDescriptorSize);
         MemoryType memoryType;
         switch (uefiEntry.type)
         {

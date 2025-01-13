@@ -44,5 +44,6 @@ void KernelMain(BootInfo* bootInfo)
 
         dbg("\n");
     }
+
     exit(0);
 }
