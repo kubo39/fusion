@@ -2,6 +2,7 @@ import ldc.attributes : naked;
 import ldc.llvmasm : __asm;
 
 import bootinfo;
+import debugcon;
 import uefi;
 
 extern (C):
@@ -11,6 +12,8 @@ enum KernelPhysicalBase = 0x100000;
 enum ulong KernelStackSize = 128 * 1024;
 
 alias KernelEntryPoint = void function(BootInfo*);
+
+void __chkstk() {}
 
 @naked noreturn exit(int status)
 {
@@ -87,6 +90,7 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
         kernelImagePages,
         cast(EfiPhysicalAddress*) &kernelImageBase
     ));
+    dbg("[debug]: kernel image base: 0x%x\n", kernelImageBase);
 
     consoleOut("boot: Allocating memory for kernel stack (16 KiB) "w);
     ulong kernelStackBase;
@@ -98,7 +102,7 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
         &kernelStackBase
     ));
 
-    consoleOut("boot: Allocating emory for bootinfo"w);
+    consoleOut("boot: Allocating memory for bootinfo"w);
     ulong bootInfoBase;
     checkStatus(uefi.sysTable.bootServices.allocatePages(
         EfiAllocateType.AllocateAnyPages,
@@ -106,6 +110,7 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
         1,
         &bootInfoBase
     ));
+    dbg("[debug]: bootinfo base: 0x%x\n", bootInfoBase);
 
     // read the kernel into memory
     consoleOut("boot: Reading kernel into memory"w);
@@ -142,8 +147,10 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     // allocate pool for memory map (this changes the memory map size, hence the previous step)
     consoleOut("boot: Allocating pool for memory map"w);
     checkStatus(uefi.sysTable.bootServices.allocatePool(
-        EfiMemoryType.EfiLoaderData, memoryMapSize, cast(void**) &memoryMap
+        EfiMemoryType.EfiLoaderData, memoryMapSize, &memoryMap
     ));
+    dbg("[debug]: memory map (allocatePool): 0x%x\n", memoryMap);
+    dbg("[debug]: memory map size (allocatePool): 0x%x\n", memoryMapSize);
 
     // now get the memory map
     consoleOut("boot: Getting memory map and exiting boot services"w);
@@ -154,6 +161,9 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
         &memoryMapDescriptorSize,
         &memoryMapDescriptorVersion
     );
+    dbg("[debug]: memory map (getMemoryMap): 0x%x\n", memoryMap);
+    dbg("[debug]: memory map size (getMemoryMap): 0x%x\n", memoryMapSize);
+    dbg("[debug]: descriptor size (getMemoryMap): 0x%x\n", memoryMapDescriptorSize);
 
     // IMPORTANT: After this point we cannot output anything to the console, since doing
     // so may allocate memory and change the memory map, invalidating our map key. We can
@@ -175,11 +185,12 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
 
     // ======= NO MORE UEFI BOOT SERVICES =======
 
-    MemoryMapEntry[] physMemoryMap;
-    immutable uefiNumMemoryMapEntries = memoryMapSize / memoryMapDescriptorSize;
+    // we cannot dynamic array here, use static array instead.
+    MemoryMapEntry[135] physMemoryMap = void;
+    const uefiNumMemoryMapEntries = memoryMapSize / memoryMapDescriptorSize;
     foreach (i; 0 .. uefiNumMemoryMapEntries)
     {
-        auto uefiEntry = cast(EfiMemoryDescriptor*)(memoryMap + i * memoryMapDescriptorSize);
+        const uefiEntry = cast(EfiMemoryDescriptor*)(cast(ulong)memoryMap + i * memoryMapDescriptorSize);
         MemoryType memoryType;
         switch (uefiEntry.type)
         {
@@ -212,10 +223,13 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     auto bootInfo = cast(BootInfo*) bootInfoBase;
 
     // copy physical memory map entries to boot info
-    bootInfo.physicalMemoryMap.len = cast(uint) physMemoryMap.length;
-    foreach (i; 0 .. physMemoryMap.length)
+    bootInfo.physicalMemoryMap.len = uefiNumMemoryMapEntries;
+    bootInfo.physicalMemoryMap.entries = cast(MemoryMapEntry**) (bootInfoBase + BootInfo.sizeof);
+
+    foreach (i; 0 .. uefiNumMemoryMapEntries)
     {
-        bootInfo.physicalMemoryMap.entries[i] = physMemoryMap[i];
+        *(cast(MemoryMapEntry*)bootInfo.physicalMemoryMap.entries + i * MemoryMapEntry.sizeof) =
+            physMemoryMap[i];
     }
 
     // jump to kernel
@@ -225,16 +239,12 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     `, "{rdi},{rsp},{rdx}",
     bootInfoBase, kernelStackTop, KernelPhysicalBase);
 
-
     // we should never get here
     exit(0);
 }
 
-void Dmain() {}
-
 EfiStatus efi_main(EfiHandle imgHandle, EfiSystemTable* sysTable)
 {
-    Dmain();
     EfiMainInner(imgHandle, sysTable);
     return EfiLoadError;
 }
