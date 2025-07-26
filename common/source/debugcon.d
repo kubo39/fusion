@@ -68,7 +68,7 @@ void dbg(const(char)* fmt, ...)
 
                 while (divisor > 0)
                 {
-                    putchar('0' + value / divisor);
+                    putchar(cast(char) ('0' + value / divisor));
                     value %= divisor;
                     divisor /= 10;
                 }

@@ -21,7 +21,14 @@ nothrow:
 
 void KernelMain(BootInfo* bootInfo)
 {
-    dbg("kernel: Fusion Kernel\n");
-    dbg("kernel: Memory map length: %d\n", bootInfo.physicalMemoryMap.len);
+    dbg("\n\nkernel: Fusion Kernel\n");
+    dbg("\n");
+
+    dbg("Memory map (%d entries)\n", bootInfo.physicalMemoryMap.len);
+    foreach (i; 0 .. bootInfo.physicalMemoryMap.len)
+    {
+        const entry = (*bootInfo.physicalMemoryMap.entries)[i];
+        dbg("   %d: type=%d start=0x%x nframes=%d\n", i, entry.type, entry.start, entry.nframes);
+    }
     exit(0);
 }
