@@ -24,25 +24,11 @@ void KernelMain(BootInfo* bootInfo)
     dbg("\n\nkernel: Fusion Kernel\n");
     dbg("\n");
 
-    dbg("bootInfo 0x%x\n", bootInfo);
-    dbg("bootInfo.physicalMemoryMap 0x%x\n", &bootInfo.physicalMemoryMap);
-    dbg("&bootInfo.physicalMemoryMap.entries 0x%x\n", &bootInfo.physicalMemoryMap.entries);
-    dbg("bootInfo.physicalMemoryMap.entries 0x%x\n", bootInfo.physicalMemoryMap.entries);
-
     dbg("Memory map (%d entries)\n", bootInfo.physicalMemoryMap.len);
-    dbg("   Entry");
-    dbg("   Type");
-    dbg("   Start");
-    dbg("\n");
-
     foreach (i; 0 .. bootInfo.physicalMemoryMap.len)
     {
-        const entry = *(cast(MemoryMapEntry*)bootInfo.physicalMemoryMap.entries + i * MemoryMapEntry.sizeof);
-        dbg("   0x%x", (bootInfo.physicalMemoryMap.entries + i * MemoryMapEntry.sizeof));
-        dbg("   %d", entry.type);
-        dbg("   0x%x", entry.start);
-
-        dbg("\n");
+        const entry = (*bootInfo.physicalMemoryMap.entries)[i];
+        dbg("   %d: type=%d start=0x%x nframes=%d\n", i, entry.type, entry.start, entry.nframes);
     }
     exit(0);
 }

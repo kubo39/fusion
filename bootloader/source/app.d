@@ -13,6 +13,8 @@ enum ulong KernelStackSize = 128 * 1024;
 
 alias KernelEntryPoint = void function(BootInfo*);
 
+__gshared ulong bootInfoBase;
+
 void __chkstk() {}
 
 @naked noreturn exit(int status)
@@ -117,15 +119,12 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     checkStatus(rootDir.close(rootDir));
 
     consoleOut("boot: Allocating memory for bootinfo"w);
-    ulong bootInfoBase;
     checkStatus(uefi.sysTable.bootServices.allocatePages(
         EfiAllocateType.AllocateAnyPages,
         EfiMemoryType.OsvKernelStack,
         1,
         &bootInfoBase
     ));
-    dbg("[debug]: bootinfo base: 0x%x\n", bootInfoBase);
-    dbg("[debug]: address of bootinfo: 0x%x\n", &bootInfoBase);
 
     // memory map
     uint memoryMapSize = 0;
@@ -142,8 +141,6 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
         &memoryMapDescriptorSize,
         null
     );
-    dbg("[debug]: memory map size (getMemoryMap): 0x%x\n", memoryMapSize);
-    dbg("[debug]: bootinfo base (getMemoryMapSize): 0x%x\n", bootInfoBase);
 
     // increase memory map size to account for the next call to allocatePool
     memoryMapSize += memoryMapDescriptorSize;
@@ -155,21 +152,17 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
         memoryMapSize,
         cast(void**) &memoryMap
     ));
-    dbg("[debug]: memory map (allocatePool): 0x%x\n", memoryMap);
-    dbg("[debug]: memory map size (allocatePool): 0x%x\n", memoryMapSize);
 
     // now get the memory map
     consoleOut("boot: Getting memory map and exiting boot services"w);
+    auto memoryMapPtr = cast(EfiMemoryDescriptor*) memoryMap;
     status = uefi.sysTable.bootServices.getMemoryMap(
         &memoryMapSize,
-        cast(EfiMemoryDescriptor*) memoryMap,
+        memoryMapPtr,
         &memoryMapKey,
         &memoryMapDescriptorSize,
         &memoryMapDescriptorVersion
     );
-    dbg("[debug]: memory map (getMemoryMap): 0x%x\n", memoryMap);
-    dbg("[debug]: memory map size (getMemoryMap): 0x%x\n", memoryMapSize);
-    dbg("[debug]: descriptor size (getMemoryMap): 0x%x\n", memoryMapDescriptorSize);
 
     // IMPORTANT: After this point we cannot output anything to the console, since doing
     // so may allocate memory and change the memory map, invalidating our map key. We can
@@ -196,7 +189,7 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
     const uefiNumMemoryMapEntries = memoryMapSize / memoryMapDescriptorSize;
     foreach (i; 0 .. uefiNumMemoryMapEntries)
     {
-        const uefiEntry = cast(EfiMemoryDescriptor*)(cast(ulong)memoryMap + i * memoryMapDescriptorSize);
+        const uefiEntry = cast(EfiMemoryDescriptor*)(cast(ulong)memoryMapPtr + i * memoryMapDescriptorSize);
         MemoryType memoryType;
         switch (uefiEntry.type)
         {
@@ -230,12 +223,16 @@ noreturn EfiMainInner(EfiHandle imgHandle, EfiSystemTable* sysTable)
 
     // copy physical memory map entries to boot info
     bootInfo.physicalMemoryMap.len = uefiNumMemoryMapEntries;
-    bootInfo.physicalMemoryMap.entries = cast(MemoryMapEntry**) (bootInfoBase + BootInfo.sizeof);
+    // Layout: [BootInfo][MemoryMapEntry*][MemoryMapEntry[0]][MemoryMapEntry[1]]...
+    auto entriesPtrLocation = cast(MemoryMapEntry**) (bootInfoBase + BootInfo.sizeof);
+    auto entriesArray = cast(MemoryMapEntry*) (bootInfoBase + BootInfo.sizeof + (MemoryMapEntry*).sizeof);
+    // Set the pointer to point to the array location
+    *entriesPtrLocation = entriesArray;
+    bootInfo.physicalMemoryMap.entries = entriesPtrLocation;
 
     foreach (i; 0 .. uefiNumMemoryMapEntries)
     {
-        *(cast(MemoryMapEntry*)bootInfo.physicalMemoryMap.entries + i * MemoryMapEntry.sizeof) =
-            physMemoryMap[i];
+        entriesArray[i] = physMemoryMap[i];
     }
 
     // jump to kernel
